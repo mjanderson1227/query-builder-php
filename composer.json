@@ -1,0 +1,18 @@
+{
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/",
+            "Database\\": "database/",
+            "Framework\\": "framework/",
+            "State\\": "state/"
+        }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^2.1",
+        "laravel/pint": "*"
+    },
+    "scripts": {
+        "pint": "pint --config pint.json",
+        "analyze": "phpstan analyze --level 10 database framework public src state templates"
+    }
+}
