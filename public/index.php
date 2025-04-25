@@ -3,8 +3,6 @@
 include '../vendor/autoload.php';
 
 use App\Controller\HomeController;
-use App\Controller\QueryController;
-use App\Controller\StaticAssetsController;
 use Database\DatabaseManager;
 use Framework\Request;
 use Framework\Router;
@@ -23,15 +21,19 @@ $router = new Router();
 // Build a request from the php information see Request.php for more information.
 $request = new Request();
 
-$api = new QueryController();
+$home = new HomeController();
 
 // Set up routes.
-$router->get('/', [new HomeController(), 'show']);
-$router->get('/static', [new StaticAssetsController(), 'serve']);
-$router->get('/api/equipment/show', [$api, 'show']);
-$router->post('/api/equipment/create', [$api, 'create']);
-$router->post('/api/equipment/update', [$api, 'update']);
-$router->post('/api/equipment/delete', [$api, 'delete']);
+$router->get('/', [$home, 'show']);
+
+$router->get('/create', [$home, 'showCreate']);
+$router->post('/create/submit', [$home, 'handleCreate']);
+
+$router->get('/edit', [$home, 'showUpdate']);
+$router->post('/edit/submit', [$home, 'handleUpdate']);
+
+$router->get('/delete', [$home, 'showDelete']);
+$router->post('/delete/submit', [$home, 'handleDelete']);
 
 // Dispatch the request to the router.
 $router->dispatch($request);

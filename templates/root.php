@@ -1,6 +1,10 @@
 <?php
 
-/** @var string $page */ ?>
+/** @var string|null $page */
+if (! $page) {
+  throw new InvalidArgumentException('Unable to find the template variable $page');
+}
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -15,7 +19,7 @@
   <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js" defer></script>
 </head>
 
-<body class="bg-gray-900">
+<body class="dark:bg-gray-900 bg-white">
   <?= $page ?>
 </body>
 

@@ -32,25 +32,78 @@ class DatabaseManager
     /**
      * Request a page of equipment records from the database (100 items per page)
      *
+     * @param string $status The status of the query e.g. "active", "inactive", "all".
      * @param  int  $pageNumber  The page number to request.
+     * @param int $pageSize The size of each page.
+     *
      * @return array<EquipmentRecord>|false An array of equipment data.
      */
-    public static function selectEquipmentPage(int $pageNumber = 1, int $pageSize = 10): array|false
+    public static function selectEquipmentPage(string $status = "active", int $pageNumber = 1, int $pageSize = 10): array|false
     {
-        $sql = <<<'SQL'
-            SELECT equipment.id as id, equipment_types.name as equipment_type, manufacturers.name as manufacturer, serial_number
-            FROM equipment
-            INNER JOIN equipment_types
-            ON equipment_types.id = equipment.type_id
-            INNER JOIN manufacturers
-            ON manufacturers.id = equipment.manufacturer_id
-            ORDER BY equipment.id
-            LIMIT ?
-            OFFSET ?
-        SQL;
+        switch ($status) {
+            case "active":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    WHERE equipment_types.disabled = 0
+                    AND manufacturers.disabled = 0
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+            case "inactive":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    WHERE equipment_types.disabled = 1
+                    OR manufacturers.disabled = 1
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+            case "all":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+        }
 
         $query = self::$equipment_conn->prepare($sql);
         if (!$query) {
+            error_log(__FUNCTION__ . ': Unable to prepare SQL statement.');
             return false;
         }
 
@@ -61,6 +114,7 @@ class DatabaseManager
 
         $result = $query->get_result();
         if (!$result) {
+            error_log(__FUNCTION__ . ': An error occurred getting the result of the SQL query.');
             return false;
         }
 
@@ -82,44 +136,100 @@ class DatabaseManager
      *
      * @param  string  $by  The equipment type to search by.
      * @param  string  $value  The name of the query.
+     * @param string $status The status of the query e.g. "active", "inactive", "all".
      * @param  int  $pageNumber  The page number to request.
      * @param  int  $pageSize  The number of elements that are present in a page.
      * @return array<EquipmentRecord>|false An array of equipment data.
      */
-    public static function selectEquipmentPageWithQuery(string $by, string $value, int $pageNumber = 1, int $pageSize = 10): array|false
+    public static function selectEquipmentPageWithQuery(string $by, string $value, string $status = "active", int $pageNumber = 1, int $pageSize = 10): array|false
     {
         $orderBy = match ($by) {
-            'type' => 'equipment_type',
-            'manufacturer' => 'manufacturer',
+            'type' => 'equipment_types.name',
+            'manufacturer' => 'manufacturers.name',
             'serial' => 'serial_number',
-            default => 'equipment_type'
+            default => 'equipment_types.name'
         };
 
-        $sql = <<<'SQL'
-            SELECT equipment.id as id, equipment_types.name as equipment_type, manufacturers.name as manufacturer, serial_number
-            FROM equipment
-            INNER JOIN equipment_types
-            ON equipment_types.id = equipment.type_id
-            INNER JOIN manufacturers
-            ON manufacturers.id = equipment.manufacturer_id
-            WHERE ? = ?
-            ORDER BY equipment.id
-            LIMIT ?
-            OFFSET ?
-        SQL;
+        switch ($status) {
+            case "active":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    WHERE $orderBy = ?
+                    AND equipment_types.disabled = 0
+                    AND manufacturers.disabled = 0
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+            case "inactive":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    WHERE $orderBy = ?
+                    AND (
+                        equipment_types.disabled = 1
+                        OR manufacturers.disabled = 1
+                    )
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+            case "all":
+                $sql = <<<"SQL"
+                    SELECT
+                        equipment.id AS id,
+                        equipment_types.name AS equipment_type,
+                        manufacturers.name AS manufacturer,
+                        serial_number, equipment_types.disabled AS type_disabled,
+                        manufacturers.disabled AS manufacturer_disabled
+                    FROM equipment
+                    INNER JOIN equipment_types
+                    ON equipment_types.id = equipment.type_id
+                    INNER JOIN manufacturers
+                    ON manufacturers.id = equipment.manufacturer_id
+                    WHERE $orderBy = ?
+                    ORDER BY equipment.id
+                    LIMIT ?
+                    OFFSET ?
+                SQL;
+                break;
+        }
 
         $query = self::$equipment_conn->prepare($sql);
         if (!$query) {
+            error_log(__FUNCTION__ . ': Unable to prepare SQL statement.');
             return false;
         }
 
         $offset = abs(($pageNumber - 1) * $pageSize);
 
-        $query->bind_param('ssii', $orderBy, $value, $pageSize, $offset);
+        $query->bind_param('sii', $value, $pageSize, $offset);
         $query->execute();
 
         $result = $query->get_result();
         if (!$result) {
+            error_log(__FUNCTION__ . ': An error occurred getting the result of the SQL query.');
             return false;
         }
 
@@ -129,7 +239,8 @@ class DatabaseManager
                 (string)$row['id'],
                 (string)$row['equipment_type'],
                 (string)$row['manufacturer'],
-                (string)$row['serial_number']
+                (string)$row['serial_number'],
+                $row['type_disabled'] || $row['manufacturer_disabled'],
             );
         }
 
@@ -148,6 +259,7 @@ class DatabaseManager
 
         $query = self::$equipment_conn->prepare($sql);
         if (!$query) {
+            error_log(__FUNCTION__ . ': Unable to prepare SQL statement.');
             return false;
         }
 
@@ -156,10 +268,59 @@ class DatabaseManager
 
         $result = $query->get_result();
         if (!$result) {
+            error_log(__FUNCTION__ . ': An error occurred getting the result of the SQL query.');
             return false;
         }
 
         return true;
+    }
+
+    private static function fetchManufacturerId(string $manufacturer): int|false
+    {
+        $sql = <<<'SQL'
+            INSERT INTO manufacturers (name)
+            VALUES (?)
+            ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id);
+        SQL;
+
+        $query = self::$equipment_conn->prepare($sql);
+        if (!$query) {
+            return false;
+        }
+
+        $query->bind_param('s', $manufacturer);
+        $query->execute();
+
+        $lastRow = $query->insert_id;
+        if (!is_int($lastRow)) {
+            return false;
+        }
+
+        return $lastRow;
+    }
+
+    private static function fetchEquipmentTypeId(string $equipmentType): int|false
+    {
+        $sql = <<<'SQL'
+            INSERT INTO equipment_types (name)
+            VALUES (?)
+            ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id);
+        SQL;
+
+        $query = self::$equipment_conn->prepare($sql);
+        if (!$query) {
+            return false;
+        }
+
+        $query->bind_param('s', $equipmentType);
+        $query->execute();
+
+        $lastRow = $query->insert_id;
+        if (!is_int($lastRow)) {
+            return false;
+        }
+
+        return $lastRow;
     }
 
     /**
@@ -171,22 +332,23 @@ class DatabaseManager
      */
     public static function updateEquipmentRecord(int $id, string $equipmentType, string $manufacturer, string $serialNumber): bool
     {
-        $sql = 'UPDATE equipment SET equipment_type = ?, manufacturer = ?, serial_number = ? WHERE id = ?';
+        $equipmentTypeId = self::fetchEquipmentTypeId($equipmentType);
+        $manufacturerId = self::fetchManufacturerId($manufacturer);
+        if (!$equipmentTypeId || !$manufacturerId) {
+            return false;
+        }
+
+        $sql = 'UPDATE equipment SET type_id = ?, manufacturer_id = ?, serial_number = ? WHERE id = ?';
 
         $query = self::$equipment_conn->prepare($sql);
         if (!$query) {
+            error_log(__FUNCTION__ . ': Unable to prepare SQL statement.');
             return false;
         }
 
-        $query->bind_param('sssi', $equipmentType, $manufacturer, $serialNumber, $id);
-        $query->execute();
+        $query->bind_param('iisi', $equipmentTypeId, $manufacturerId, $serialNumber, $id);
 
-        $result = $query->get_result();
-        if (!$result) {
-            return false;
-        }
-
-        return true;
+        return $query->execute();
     }
 
     /**
@@ -199,6 +361,7 @@ class DatabaseManager
 
         $query = self::$equipment_conn->prepare($sql);
         if (!$query) {
+            error_log(__FUNCTION__ . ': Unable to prepare SQL statement.');
             return false;
         }
 
@@ -207,6 +370,7 @@ class DatabaseManager
 
         $result = $query->get_result();
         if (!$result) {
+            error_log(__FUNCTION__ . ': An error occurred getting the result of the SQL query.');
             return false;
         }
 
@@ -219,24 +383,129 @@ class DatabaseManager
      */
     public static function getTotalRecordCount(): int|false
     {
-        $sql = 'SELECT COUNT(*) as count FROM equipment';
+        $sql = 'SELECT COUNT(*) AS count FROM equipment';
 
         $result = self::$equipment_conn->query($sql);
 
         if (is_bool($result)) {
+            error_log(__FUNCTION__ . ': Invalid result returned from SQL query.');
             return false;
         }
 
-        $row = $result->fetch_row();
+        $row = $result->fetch_assoc();
         if (!$row) {
+            error_log(__FUNCTION__ . ': An error occurred getting the result of the SQL query.');
             return false;
         }
 
         $count = $row['count'];
-        if (!is_int($count)) {
+        if (!is_string($count)) {
+            error_log(__FUNCTION__ . ': Invalid result returned from SQL query.');
             return false;
         }
 
-        return $count;
+        return intval($count);
+    }
+
+    /**
+     * @param string $equipmentType The type of the equipment record.
+     * @param string $manufacturer The manufacturer of the equipment record.
+     * @param string $serialNumber The manufacturer of the equipment record.
+     * @return bool Whether or not the creation was successful
+     */
+    public static function createEquipmentRecord(string $equipmentType, string $manufacturer, string $serialNumber)
+    {
+        $equipmentTypeId = self::fetchEquipmentTypeId($equipmentType);
+        $manufacturerId = self::fetchManufacturerId($manufacturer);
+        if (!$equipmentTypeId || !$manufacturerId) {
+            return false;
+        }
+
+        $sql = 'INSERT INTO equipment (type_id, manufacturer_id, serial_number) VALUES (?, ?, ?)';
+
+        $query = self::$equipment_conn->prepare($sql);
+
+        $query->bind_param('sss', $equipmentTypeId, $manufacturerId, $serialNumber);
+
+        return $query->execute();
+    }
+
+    /**
+     * Get a piece of equipment by its id
+     * @param int $id the id of the equipment to get.
+     * @return EquipmentRecord|false
+     */
+    public static function getEquipmentRecord(int $id): EquipmentRecord|false
+    {
+        $sql = <<<'SQL'
+            SELECT equipment.id as id, equipment_types.name as equipment_type, manufacturers.name as manufacturer, serial_number
+            FROM equipment
+            INNER JOIN equipment_types
+            ON equipment_types.id = equipment.type_id
+            INNER JOIN manufacturers
+            ON manufacturers.id = equipment.manufacturer_id
+            WHERE equipment.id = ?
+            LIMIT 1
+        SQL;
+
+        $query = self::$equipment_conn->prepare($sql);
+        if (!$query) {
+            return false;
+        }
+        $query->bind_param('i', $id);
+
+        $query->execute();
+
+        $result = $query->get_result();
+
+        if (!$result) {
+            return false;
+        }
+
+        $row = $result->fetch_assoc();
+        if ($row === false || $row === null) {
+            return false;
+        }
+
+        return new EquipmentRecord(
+            (string)$row['id'],
+            (string)$row['equipment_type'],
+            (string)$row['manufacturer'],
+            (string)$row['serial_number']
+        );
+    }
+
+    public static function updateManufacturerStatus(string $manufacturer, bool $shouldDisable): bool
+    {
+        $sql = 'UPDATE manufacturers SET disabled = ? WHERE name = ?';
+
+        $query = self::$equipment_conn->prepare($sql);
+
+        if (!$query) {
+            return false;
+        }
+
+        $shouldDisable = (int) $shouldDisable;
+
+        $query->bind_param('is', $shouldDisable, $manufacturer);
+
+        return $query->execute();
+    }
+
+    public static function updateEquipmentTypeStatus(string $equipmentType, bool $shouldDisable = false): bool
+    {
+        $sql = 'UPDATE equipment_types SET disabled = ? WHERE name = ?';
+
+        $query = self::$equipment_conn->prepare($sql);
+
+        if (!$query) {
+            return false;
+        }
+
+        $shouldDisable = (int) $shouldDisable;
+
+        $query->bind_param('is', $shouldDisable, $equipmentType);
+
+        return $query->execute();
     }
 }

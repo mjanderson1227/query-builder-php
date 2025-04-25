@@ -38,9 +38,11 @@ class View
             require $layoutPath;
 
             $buffer = ob_get_clean();
-            if ($buffer) {
+            if (! $buffer) {
                 throw new \RuntimeException('Unable to render layout output buffer into html response');
             }
+
+            return $buffer;
         }
 
         return $page;

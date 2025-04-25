@@ -12,12 +12,15 @@ class EquipmentRecord
 
     public string $serialNumber;
 
-    public function __construct(string $id, string $equipmentType, string $manufacturer, string $serialNumber)
+    public bool $disabled;
+
+    public function __construct(string $id, string $equipmentType, string $manufacturer, string $serialNumber, bool $disabled = false)
     {
         $this->id = $id;
         $this->equipmentType = $equipmentType;
         $this->manufacturer = $manufacturer;
         $this->serialNumber = $serialNumber;
+        $this->disabled = $disabled;
     }
 
     /**
@@ -30,6 +33,7 @@ class EquipmentRecord
             'equipment_type' => $this->equipmentType,
             'manufacturer' => $this->manufacturer,
             'serial_number' => $this->serialNumber,
+            'disabled' => $this->disabled,
         ];
     }
 }

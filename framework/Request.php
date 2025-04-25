@@ -35,9 +35,9 @@ class Request
             throw new InvalidArgumentException('Malformed request uri');
         }
 
-        $parsed = parse_url($uri, PHP_URL_FRAGMENT);
+        $parsed = parse_url($uri, PHP_URL_PATH);
         if (!is_string($parsed)) {
-            throw new InvalidArgumentException('Malformed request uri');
+            throw new InvalidArgumentException('Unable to parse fragment from uri');
         }
 
         return $parsed;
